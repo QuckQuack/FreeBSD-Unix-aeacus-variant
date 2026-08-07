@@ -1,0 +1,15 @@
+.idea/
+.vscode/
+scoring.dat
+scoring.conf
+ScoringReport.html
+ReadMe.html
+aeacus
+phocus
+previous.txt
+TeamID.txt
+tags
+*.swp
+*.zip
+*.exe
+.keys

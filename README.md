@@ -1,6 +1,6 @@
 # FreeBSD Port of Aeacus
 
-Due to...................... current events, I have decided to create a version of Aeacus for FreeBSD/Unix.
+Due to let’s say current events, I have decided to create a version of Aeacus for FreeBSD/Unix.
 
 I do not claim, nor intend to imply, that I created the Aeacus project, I was not involved in its creation in any way.
 

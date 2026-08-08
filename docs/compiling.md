@@ -16,7 +16,7 @@ Update: I have now added `aeacus-freebsd.zip` as a pre compiled version; though 
 | Tool | Notes |
 |---|---|
 | [Go](https://go.dev/dl/) | Version 1.19 or newer. Check with `go version`. |
-| `git` | To clone the repository. |
+| `git` | To clone the repository. (or just download the tar.zip file) |
 | `make` | To use the provided build targets (optional -- see [Compiling without make](#compiling-without-make)). |
 | `zip` | Only required for the `release-bsd` target. |
 

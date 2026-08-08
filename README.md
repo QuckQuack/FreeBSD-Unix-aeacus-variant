@@ -1,4 +1,4 @@
-# FreeBSD Port of Aeacus
+# FreeBSD Version of Aeacus
 
 Due to current events, I have decided to create a version of Aeacus for FreeBSD/Unix.
 

@@ -4,13 +4,12 @@ This document covers building `aeacus` from source for **FreeBSD**.
 
 ## Do you need to compile it yourself?
 
-Yes, for FreeBSD you do. The [GitHub Releases page](https://github.com/elysium-suite/aeacus/releases) for the
-upstream project only publishes pre-built binaries for Windows and Linux -- FreeBSD binaries are not yet part of the
-upstream release process. To get a FreeBSD binary you'll need to either build it yourself (this doc), or ask the
-maintainer of your fork/mirror to publish `aeacus-freebsd.zip` as part of their release process.
+You don’t have to, but it’s highly recommended. The [GitHub Releases page](https://github.com/elysium-suite/aeacus/releases) for the
+upstream project publishes pre-built binaries for Windows and Linux -- FreeBSD binaries are not yet part of the
+upstream release process. To get a FreeBSD binary you'll need to either build it yourself.
+Update: I have now added `aeacus-freebsd.zip` as a pre compiled version; though it uses the same hash that any other copy would have so it’s therefore less secure. 
 
-If you maintain a fork or mirror and want your users to avoid compiling it themselves, run `make release-bsd` and
-attach the resulting `aeacus-freebsd.zip` to your own release.
+
 
 ## Requirements
 
@@ -33,7 +32,7 @@ git clone https://github.com/elysium-suite/aeacus.git
 cd aeacus
 ```
 
-If you're working from a fork or a patch set (such as a FreeBSD port), clone or extract that instead.
+
 
 ## Fetching dependencies
 
@@ -45,7 +44,7 @@ go get -v -d -t ./...
 
 This reads `go.mod`/`go.sum` and downloads every dependency to your local module cache. It only needs to be run
 once per machine (or after `go.mod` changes) -- normal builds afterward reuse the cache. Note that this also
-downloads Windows-only dependencies (needed elsewhere in the module graph); that's expected and harmless for a
+downloads Windows only dependencies (needed elsewhere in the module graph); that's expected and harmless for a
 FreeBSD build.
 
 ## Building

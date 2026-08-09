@@ -9,6 +9,6 @@ Once this BSD version has been tested, I intend to open a pull request on the of
 I highly advise you compile it yourself, however if you so desire a precompiled project is attached. I should note, if you do NOT compile it yourself, your scoring engine will be encrypted with the same hash as any other image not self compiled. 
 Reference `compiling.md` for instructions on compiling.
 
-This project is built almost exclusively on the existing source code of Aeacus, and should behave the same (besides the extra checks added). 
+This project is built almost exclusively on the existing source code of Aeacus, and should behave the same as aeacus (besides the extra checks added). 
 
 Refer to the main aeacus repository for any questions, or contact me on Discord: `@brody001301` (aka gooseman) on the Cyber server.

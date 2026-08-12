@@ -113,11 +113,7 @@ key = 'security.bsd.see_other_uids'
 value = '0'
 ```
 
-**PkgAuditClean**: pass if `pkg audit` reports no known vulnerabilities in currently installed packages
 
-```
-type = 'PkgAuditClean'
-```
 
 **RcVarEnabled**: pass if the given `rc.conf(5)` variable is set to `YES`/`true`, checking both `/etc/rc.conf` and
 `/etc/rc.conf.d/<name>` overrides

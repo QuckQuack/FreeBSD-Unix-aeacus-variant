@@ -7,7 +7,7 @@ This document covers building `aeacus` from source for **FreeBSD**.
 You don’t have to, but it’s highly recommended. The [GitHub Releases page](https://github.com/elysium-suite/aeacus/releases) for the
 upstream project publishes pre-built binaries for Windows and Linux -- FreeBSD binaries are not yet part of the
 upstream release process. To get a FreeBSD binary you'll need to either build it yourself.
-Update: I have now added `aeacus-freebsd.zip` as a pre compiled version; though it uses the same hash that any other copy would have so it’s therefore less secure. 
+Update: I have now added a pre compiled version; though it uses the same hash that any other copy would have so it’s therefore less secure. 
 
 
 

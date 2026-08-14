@@ -60,34 +60,6 @@ func (c cond) Command() (bool, error) {
 	return true, nil
 }
 
-// FirewallUp passes if pf or ipfw is enabled via rc.conf, or is currently
-// loaded and running (in case it was started outside of rc.conf).
-func (c cond) FirewallUp() (bool, error) {
-	pfEnabled, err := cond{
-		Path:  "/etc/rc.conf",
-		Value: `(?im)^\s*pf_enable\s*=\s*"?(yes|true)"?`,
-		regex: true,
-	}.FileContains()
-	if err == nil && pfEnabled {
-		return true, nil
-	}
-
-	ipfwEnabled, err := cond{
-		Path:  "/etc/rc.conf",
-		Value: `(?im)^\s*ipfw_enable\s*=\s*"?(yes|true)"?`,
-		regex: true,
-	}.FileContains()
-	if err == nil && ipfwEnabled {
-		return true, nil
-	}
-
-	// Neither entry was found in rc.conf -- check if pf is loaded and
-	// running right now, in case it was started manually.
-	return cond{
-		Cmd: "pfctl -s info",
-	}.Command()
-}
-
 // GuestDisabledLDM passes if guest login is disabled for LightDM. On
 // FreeBSD, LightDM (like all packages) is installed under /usr/local.
 func (c cond) GuestDisabledLDM() (bool, error) {
@@ -119,28 +91,6 @@ func (c cond) KernelVersion() (bool, error) {
 	}
 	debug("System kern.osrelease value is", release, "and our value is", c.Value)
 	return release == c.Value, nil
-}
-
-// PasswordChanged passes if the password hash for a given user in
-// /etc/master.passwd (FreeBSD's shadow-equivalent) differs from the value
-// provided, indicating the password has been changed from a known value.
-func (c cond) PasswordChanged() (bool, error) {
-	c.requireArgs("User", "Value")
-	fileContent, err := readFile("/etc/master.passwd")
-	if err != nil {
-		return false, err
-	}
-	for _, line := range strings.Split(fileContent, "\n") {
-		if strings.HasPrefix(line, c.User+":") {
-			if strings.Contains(line, c.User+":"+c.Value) {
-				debug("Exact value found in /etc/master.passwd for user", c.User+":", line)
-				return false, nil
-			}
-			debug("Differing value found in /etc/master.passwd for user", c.User+":", line)
-			return true, nil
-		}
-	}
-	return false, errors.New("user not found")
 }
 
 // FileOwner passes if the given path is owned by the given user.
@@ -247,16 +197,6 @@ func (c cond) UserExists() (bool, error) {
 	return cond{
 		Path:  "/etc/passwd",
 		Value: "^" + c.User + ":",
-		regex: true,
-	}.FileContains()
-}
-
-// UserInGroup passes if the given user is a member of the given group.
-func (c cond) UserInGroup() (bool, error) {
-	c.requireArgs("User", "Group")
-	return cond{
-		Path:  "/etc/group",
-		Value: c.Group + `[0-9a-zA-Z,:\s+]+` + c.User,
 		regex: true,
 	}.FileContains()
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html"
 	"math"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -99,7 +98,7 @@ func genReport(img *imageData) {
 
 // genReadMe generates a competition ReadMe with some built-in defaults from
 // your ReadMe.conf.
-func genReadMe() {
+func genReadMe() error {
 	header := `
 <!DOCTYPE html>
 <html>
@@ -238,12 +237,14 @@ func genReadMe() {
 		}
 	}
 	if err != nil {
-		fail("No ReadMe.conf file found!")
-		os.Exit(1)
+		return fmt.Errorf("read ReadMe.conf: %w", err)
 	}
 
 	htmlFile.WriteString(userReadMe)
 	htmlFile.WriteString(footer)
 	info("Writing HTML to ReadMe.html...")
-	writeFile(dirPath+"assets/ReadMe.html", htmlFile.String())
+	if err := writeFileResult(dirPath+"assets/ReadMe.html", htmlFile.String()); err != nil {
+		return fmt.Errorf("write ReadMe.html: %w", err)
+	}
+	return nil
 }

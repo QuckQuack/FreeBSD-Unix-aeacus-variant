@@ -67,24 +67,24 @@ func parseConfig(configContent string) {
 
 // writeConfig writes the in-memory config to disk as the an encrypted
 // configuration file.
-func writeConfig() {
+func writeConfig() error {
 	buf := new(bytes.Buffer)
 	if err := toml.NewEncoder(buf).Encode(conf); err != nil {
-		fail(err.Error())
-		os.Exit(1)
-		return
+		return fmt.Errorf("encode scoring configuration: %w", err)
 	}
 
 	dataPath := dirPath + scoringData
 	encryptedConfig, err := encryptConfig(buf.String())
 	if err != nil {
-		fail("Encrypting config failed: " + err.Error())
-		os.Exit(1)
+		return fmt.Errorf("encrypt scoring configuration: %w", err)
 	} else if verboseEnabled {
 		info("Writing data to " + dataPath + "...")
 	}
 
-	writeFile(dataPath, encryptedConfig)
+	if err := writeFileResult(dataPath, encryptedConfig); err != nil {
+		return fmt.Errorf("write encrypted scoring configuration: %w", err)
+	}
+	return nil
 }
 
 // ReadConfig parses the scoring configuration file.

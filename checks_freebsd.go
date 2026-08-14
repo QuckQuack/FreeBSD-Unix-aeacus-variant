@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"os"
 	"os/user"
@@ -8,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // AutoCheckUpdatesEnabled passes if the base system is configured to
@@ -268,24 +271,69 @@ func (c cond) UserInGroup() (bool, error) {
 // SysctlValue passes if the given sysctl MIB's value matches the value
 // provided. Set "key" to the MIB name (e.g. "security.bsd.see_other_uids")
 // and "value" to the expected string value (e.g. "0").
+//
+// Most of the MIBs this check is actually written against
+// (security.bsd.*, kern.*, and similar hardening toggles) are integers at
+// the kernel level, not strings. The standard library's syscall.Sysctl
+// only knows how to decode string-typed sysctls -- for an integer MIB it
+// reads back the raw binary bytes of the integer and reinterprets them as
+// if they were text. For a value of 0, that's four NUL bytes, not the
+// character "0", so the comparison against a config value like "0" would
+// essentially never match. That made this check structurally unpassable
+// for the exact kind of sysctl it exists to verify, regardless of the
+// box's real configuration.
+//
+// This reads the raw bytes directly via the sysctl(2) syscall and decodes
+// them by length: 4 bytes as a 32-bit integer, 8 bytes as a 64-bit
+// integer (the two sizes FreeBSD's int/uint and long/quad sysctls
+// actually use), formatted as a plain decimal string for comparison.
+// Anything else falls back to the original NUL-trimmed string behavior,
+// so genuinely string-typed sysctls still work as before.
 func (c cond) SysctlValue() (bool, error) {
 	c.requireArgs("Key", "Value")
-	result, err := syscall.Sysctl(c.Key)
+	raw, err := unix.SysctlRaw(c.Key)
 	if err != nil {
 		return false, err
 	}
+
+	var result string
+	switch len(raw) {
+	case 4:
+		result = strconv.FormatInt(int64(int32(binary.LittleEndian.Uint32(raw))), 10)
+	case 8:
+		result = strconv.FormatInt(int64(binary.LittleEndian.Uint64(raw)), 10)
+	default:
+		result = strings.TrimRight(string(raw), "\x00")
+	}
+
 	debug("Sysctl", c.Key, "is", result, "and our value is", c.Value)
 	return result == c.Value, nil
 }
 
 // PkgAuditClean passes if `pkg audit` reports no known vulnerabilities in
 // currently installed packages.
+//
+// `pkg audit` needs a local copy of the vulnerability database (normally
+// fetched via `pkg audit -F`), and nothing else in this codebase ever
+// fetches one. Without it, `pkg audit -q` returns a nonzero exit code
+// unconditionally -- meaning this check was previously unpassable
+// regardless of the actual state of installed packages, on every image.
+// Fetching it here (-F) as part of the check fixes that on any image with
+// working network access, without changing the fail-closed behavior on one
+// that doesn't: a fetch failure still exits nonzero and this still counts
+// as a failed check, same as every other check in this codebase when its
+// underlying command errors. That's intentional -- treating a missing or
+// unfetchable database as an automatic pass would let an image dodge this
+// check entirely by simply denying it network access or deleting the
+// database, which is a worse hole than the one being fixed here.
 func (c cond) PkgAuditClean() (bool, error) {
-	out, err := shellCommandOutput("pkg audit -q")
+	out, err := shellCommandOutput("pkg audit -F -q")
 	if err != nil {
 		// pkg audit returns a nonzero exit code when vulnerabilities are
-		// found (or the audit database is missing). Either way, this is a
-		// failed check rather than an unscoreable error.
+		// found, when the database fetch above failed, or when the
+		// database is otherwise unusable. All three are treated as a
+		// failed check rather than an unscoreable error, consistent with
+		// every other check's error handling in this codebase.
 		return false, nil
 	}
 	return strings.TrimSpace(out) == "", nil

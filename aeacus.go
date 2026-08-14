@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 
+	"github.com/elysium-suite/aeacus/internal/releaseflow"
 	"github.com/urfave/cli/v2"
 )
 
@@ -96,8 +97,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					permsCheck()
 					readConfig()
-					genReadMe()
-					return nil
+					return genReadMe()
 				},
 			},
 			{
@@ -107,8 +107,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					permsCheck()
 					readConfig()
-					writeConfig()
-					return nil
+					return writeConfig()
 				},
 			},
 			{
@@ -147,8 +146,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					permsCheck()
 					confirm("Are you sure you want to begin the image release process?")
-					releaseImage()
-					return nil
+					return releaseImage()
 				},
 			},
 		},
@@ -157,20 +155,25 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		fail(err.Error())
+		os.Exit(1)
 	}
 }
 
 // releaseImage goes through the process of checking the config,
 // writing the ReadMe/Desktop Files, installing the system service,
 // and cleaning the image for release.
-func releaseImage() {
+func releaseImage() error {
 	readConfig()
-	writeConfig()
-	genReadMe()
-	writeDesktopFiles()
-	configureAutologin()
-	installFont()
-	installService()
+	if err := releaseflow.Run([]releaseflow.Stage{
+		{Name: "write scoring data", Run: writeConfig},
+		{Name: "write ReadMe", Run: genReadMe},
+		{Name: "write desktop files", Run: writeDesktopFiles},
+		{Name: "configure autologin", Run: configureAutologin},
+		{Name: "install font", Run: installFont},
+		{Name: "install service", Run: installService},
+	}); err != nil {
+		return err
+	}
 	confirm("Everything is done except cleanup. Are you sure you want to continue, and remove your scoring configuration and other aeacus files?")
-	cleanUp()
+	return cleanUp()
 }

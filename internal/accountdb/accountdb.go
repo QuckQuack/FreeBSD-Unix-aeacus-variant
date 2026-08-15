@@ -95,7 +95,8 @@ func SupplementaryMember(contents, group, username string) (bool, error) {
 }
 
 func parseGID(value, database string, lineNumber int) (GID, error) {
-	gid, err := strconv.ParseUint(value, 10, 32)
+	unsigned := strings.TrimPrefix(value, "+")
+	gid, err := strconv.ParseUint(unsigned, 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("%s line %d has invalid GID %q: %w", database, lineNumber, value, err)
 	}

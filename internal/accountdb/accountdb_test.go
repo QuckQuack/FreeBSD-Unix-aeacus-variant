@@ -4,9 +4,9 @@ import (
 	"testing"
 )
 
-func TestPasswordHash_returns_exact_password_field(t *testing.T) {
+func TestPasswordHash_accepts_plus_prefixed_gid(t *testing.T) {
 	// Given
-	contents := "alice:$6$expected:1001:1001::0:0:Alice:/home/alice:/bin/sh\n"
+	contents := "alice:$6$expected:1001:+1001::0:0:Alice:/home/alice:/bin/sh\n"
 
 	// When
 	got, err := PasswordHash(contents, "alice")
@@ -122,9 +122,9 @@ func TestSupplementaryMember_skips_indented_comments_and_whitespace(t *testing.T
 	}
 }
 
-func TestGroupRecord_exposes_primary_gid_and_supplementary_members(t *testing.T) {
+func TestGroupRecord_accepts_plus_prefixed_gid(t *testing.T) {
 	// Given
-	contents := "wheel:*:0:root,alice\n"
+	contents := "wheel:*:+0:root,alice\n"
 
 	// When
 	group, found, err := FindGroup(contents, "wheel")
@@ -144,9 +144,9 @@ func TestGroupRecord_exposes_primary_gid_and_supplementary_members(t *testing.T)
 	}
 }
 
-func TestPrimaryGID_returns_exact_user_gid(t *testing.T) {
+func TestPrimaryGID_accepts_plus_prefixed_gid(t *testing.T) {
 	// Given
-	contents := "alice:$6$expected:1001:1002::0:0:Alice:/home/alice:/bin/sh\n"
+	contents := "alice:$6$expected:1001:+1002::0:0:Alice:/home/alice:/bin/sh\n"
 
 	// When
 	got, err := PrimaryGID(contents, "alice")
@@ -212,7 +212,7 @@ func TestPrimaryGID_parses_gid_as_decimal_number(t *testing.T) {
 }
 
 func TestSupplementaryMember_rejects_invalid_group_gid(t *testing.T) {
-	tests := []string{"not-a-gid", "-1", "4294967296"}
+	tests := []string{"not-a-gid", "+", "++20", "-1", "4294967296"}
 	for _, gid := range tests {
 		t.Run(gid, func(t *testing.T) {
 			// Given
@@ -230,7 +230,7 @@ func TestSupplementaryMember_rejects_invalid_group_gid(t *testing.T) {
 }
 
 func TestPrimaryGID_rejects_invalid_gid(t *testing.T) {
-	tests := []string{"not-a-gid", "-1", "4294967296"}
+	tests := []string{"not-a-gid", "+", "++20", "-1", "4294967296"}
 	for _, gid := range tests {
 		t.Run(gid, func(t *testing.T) {
 			// Given

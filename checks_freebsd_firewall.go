@@ -14,10 +14,13 @@ func (c cond) FirewallUp() (bool, error) {
 		return true, nil
 	}
 
-	ipfwEnabled, err := unix.SysctlUint32("net.inet.ip.fw.enable")
-	if err == nil {
-		return ipfwEnabled != 0, nil
+	var ipv4Enabled uint32
+	if value, err := unix.SysctlUint32("net.inet.ip.fw.enable"); err == nil {
+		ipv4Enabled = value
 	}
-
-	return false, nil
+	var ipv6Enabled uint32
+	if value, err := unix.SysctlUint32("net.inet6.ip6.fw.enable"); err == nil {
+		ipv6Enabled = value
+	}
+	return freebsdfirewall.IPFWEnabled(ipv4Enabled, ipv6Enabled), nil
 }

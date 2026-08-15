@@ -159,8 +159,6 @@ func cleanUp() error {
 		releaseCommand{"Removing crash dumps...", "rm -f /var/crash/*"},
 		releaseCommand{"Clearing pkg cache...", "pkg clean -ay"},
 		releaseCommand{"Removing logs...", "rm -f /var/log/auth.log* /var/log/messages* /var/log/security*"},
-		releaseCommand{"Installing BleachBit...", "pkg install -y bleachbit"},
-		releaseCommand{"Clearing Firefox data...", "bleachbit --clean firefox.url_history; bleachbit --clean firefox.cache"},
 		releaseCommand{"Overwriting timestamps...", `find /etc /home /var -exec touch -h -t 201212121212 {} \; 2>/dev/null`},
 	)
 }

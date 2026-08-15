@@ -89,3 +89,57 @@ func TestSupplementaryMember_rejects_malformed_group_record(t *testing.T) {
 		t.Fatal("SupplementaryMember() error = nil, want malformed-record error")
 	}
 }
+
+func TestSupplementaryMember_skips_indented_comments_and_whitespace(t *testing.T) {
+	// Given
+	contents := "   \n  # managed group records\nwheel:*:0:root,alice\n"
+
+	// When
+	got, err := SupplementaryMember(contents, "wheel", "alice")
+
+	// Then
+	if err != nil {
+		t.Fatalf("SupplementaryMember() error = %v", err)
+	}
+	if !got {
+		t.Fatal("SupplementaryMember() = false, want true")
+	}
+}
+
+func TestGroupRecord_exposes_primary_gid_and_supplementary_members(t *testing.T) {
+	// Given
+	contents := "wheel:*:0:root,alice\n"
+
+	// When
+	group, found, err := FindGroup(contents, "wheel")
+
+	// Then
+	if err != nil {
+		t.Fatalf("FindGroup() error = %v", err)
+	}
+	if !found {
+		t.Fatal("FindGroup() found = false, want true")
+	}
+	if group.GID != "0" {
+		t.Fatalf("FindGroup() GID = %q, want %q", group.GID, "0")
+	}
+	if !group.HasMember("alice") {
+		t.Fatal("GroupRecord.HasMember() = false, want true")
+	}
+}
+
+func TestPrimaryGID_returns_exact_user_gid(t *testing.T) {
+	// Given
+	contents := "alice:$6$expected:1001:1002::0:0:Alice:/home/alice:/bin/sh\n"
+
+	// When
+	got, err := PrimaryGID(contents, "alice")
+
+	// Then
+	if err != nil {
+		t.Fatalf("PrimaryGID() error = %v", err)
+	}
+	if got != "1002" {
+		t.Fatalf("PrimaryGID() = %q, want %q", got, "1002")
+	}
+}

@@ -20,6 +20,22 @@ func TestPasswordHash_returns_exact_password_field(t *testing.T) {
 	}
 }
 
+func TestPasswordHash_skips_indented_comments_and_whitespace(t *testing.T) {
+	// Given
+	contents := "  \n  # managed accounts\nalice:$6$expected:1001:1001::0:0:Alice:/home/alice:/bin/sh\n"
+
+	// When
+	got, err := PasswordHash(contents, "alice")
+
+	// Then
+	if err != nil {
+		t.Fatalf("PasswordHash() error = %v", err)
+	}
+	if got != "$6$expected" {
+		t.Fatalf("PasswordHash() = %q, want %q", got, "$6$expected")
+	}
+}
+
 func TestPasswordHash_rejects_record_without_exactly_ten_fields(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -120,8 +136,8 @@ func TestGroupRecord_exposes_primary_gid_and_supplementary_members(t *testing.T)
 	if !found {
 		t.Fatal("FindGroup() found = false, want true")
 	}
-	if group.GID != "0" {
-		t.Fatalf("FindGroup() GID = %q, want %q", group.GID, "0")
+	if group.GID != GID(0) {
+		t.Fatalf("FindGroup() GID = %d, want %d", group.GID, GID(0))
 	}
 	if !group.HasMember("alice") {
 		t.Fatal("GroupRecord.HasMember() = false, want true")
@@ -139,7 +155,94 @@ func TestPrimaryGID_returns_exact_user_gid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PrimaryGID() error = %v", err)
 	}
-	if got != "1002" {
-		t.Fatalf("PrimaryGID() = %q, want %q", got, "1002")
+	if got != GID(1002) {
+		t.Fatalf("PrimaryGID() = %d, want %d", got, GID(1002))
+	}
+}
+
+func TestPrimaryGID_skips_indented_comments_and_whitespace(t *testing.T) {
+	// Given
+	contents := "\t\n\t# managed accounts\nalice:$6$expected:1001:1002::0:0:Alice:/home/alice:/bin/sh\n"
+
+	// When
+	got, err := PrimaryGID(contents, "alice")
+
+	// Then
+	if err != nil {
+		t.Fatalf("PrimaryGID() error = %v", err)
+	}
+	if got != GID(1002) {
+		t.Fatalf("PrimaryGID() = %d, want %d", got, GID(1002))
+	}
+}
+
+func TestFindGroup_parses_gid_as_decimal_number(t *testing.T) {
+	// Given
+	contents := "wheel:*:020:root\n"
+
+	// When
+	group, found, err := FindGroup(contents, "wheel")
+
+	// Then
+	if err != nil {
+		t.Fatalf("FindGroup() error = %v", err)
+	}
+	if !found {
+		t.Fatal("FindGroup() found = false, want true")
+	}
+	if group.GID != GID(20) {
+		t.Fatalf("FindGroup() GID = %d, want %d", group.GID, GID(20))
+	}
+}
+
+func TestPrimaryGID_parses_gid_as_decimal_number(t *testing.T) {
+	// Given
+	contents := "alice:*:1001:020::0:0:Alice:/home/alice:/bin/sh\n"
+
+	// When
+	got, err := PrimaryGID(contents, "alice")
+
+	// Then
+	if err != nil {
+		t.Fatalf("PrimaryGID() error = %v", err)
+	}
+	if got != GID(20) {
+		t.Fatalf("PrimaryGID() = %d, want %d", got, GID(20))
+	}
+}
+
+func TestSupplementaryMember_rejects_invalid_group_gid(t *testing.T) {
+	tests := []string{"not-a-gid", "-1", "4294967296"}
+	for _, gid := range tests {
+		t.Run(gid, func(t *testing.T) {
+			// Given
+			contents := "wheel:*:" + gid + ":alice\n"
+
+			// When
+			_, err := SupplementaryMember(contents, "wheel", "alice")
+
+			// Then
+			if err == nil {
+				t.Fatal("SupplementaryMember() error = nil, want invalid-GID error")
+			}
+		})
+	}
+}
+
+func TestPrimaryGID_rejects_invalid_gid(t *testing.T) {
+	tests := []string{"not-a-gid", "-1", "4294967296"}
+	for _, gid := range tests {
+		t.Run(gid, func(t *testing.T) {
+			// Given
+			contents := "alice:*:1001:" + gid + "::0:0:Alice:/home/alice:/bin/sh\n"
+
+			// When
+			_, err := PrimaryGID(contents, "alice")
+
+			// Then
+			if err == nil {
+				t.Fatal("PrimaryGID() error = nil, want invalid-GID error")
+			}
+		})
 	}
 }

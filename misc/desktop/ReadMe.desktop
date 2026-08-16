@@ -3,6 +3,6 @@ Encoding=UTF-8
 Version=1.0
 Type=Application
 Terminal=false
-Exec=/usr/bin/firefox /opt/aeacus/assets/ReadMe.html
+Exec=/usr/local/bin/firefox /opt/aeacus/assets/ReadMe.html
 Name=ReadMe
 Icon=/opt/aeacus/assets/img/logo.png

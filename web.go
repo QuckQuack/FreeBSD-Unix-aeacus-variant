@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html"
 	"math"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ func genReport(img *imageData) {
 	htmlFile.WriteString(header)
 	htmlFile.WriteString("<h1>" + html.EscapeString(conf.Title) + "</h1>")
 	htmlFile.WriteString("<h2>Report Generated At: " + genTime.Format("2006/01/02 15:04:05 MST") + " </h2>")
-	htmlFile.WriteString(`<script>var bin = document.querySelectorAll('.binary'); [].forEach.call(bin, function(el) { el.dataset.binary = Array(10000).join(el.dataset.binary + ' ') }); var currentdate = new Date().getTime(); gendate = Date.parse('0000/00/00 00:00:00 UTC'); diff = Math.abs(currentdate - gendate); if ( gendate > 0 && diff > 1000 * 60 * 5 ) { document.write('<span class="red"><h2>WARNING: CSS Scoring service may not be running</h2></span>'); } </script>`)
+	htmlFile.WriteString(`<script>var bin = document.querySelectorAll('.binary'); [].forEach.call(bin, function(el) { el.dataset.binary = Array(10000).join(el.dataset.binary + ' ') }); var currentdate = new Date().getTime(); gendate = Date.parse('0000/00/00 00:00:00 UTC'); diff = Math.abs(currentdate - gendate); if ( gendate > 0 && diff > 1000 * 60 * 5 ) { document.write('<span class="red"><h2>WARNING: Aeacus scoring service may not be running</h2></span>'); } </script>`)
 
 	if conf.Remote != "" {
 		if teamID == "" {
@@ -99,7 +98,7 @@ func genReport(img *imageData) {
 
 // genReadMe generates a competition ReadMe with some built-in defaults from
 // your ReadMe.conf.
-func genReadMe() {
+func genReadMe() error {
 	header := `
 <!DOCTYPE html>
 <html>
@@ -171,7 +170,7 @@ func genReadMe() {
 	<b>NOT</b> required to change the password of the primary, auto-login, user account.
 	Changing the password of a user that is set to automatically log in may lock you out of your computer.
 	</li><li> Authorized administrator passwords were correct the last time you did a password audit,
-	but are not guaranteed to be currently accurate.</li><li> Do not disable or stop the CSSClient service or process.
+	but are not guaranteed to be currently accurate.</li><li> Do not disable or stop the aeacus service or process.
 	</li><li> Do not remove any authorized users or their home directories.</li><li>
 	The time zone of this image is set to UTC. Please do not change the time zone, date, or time on this image.</li><li>
 	You can view your current scoring report by double-clicking the "Scoring Report" desktop icon.</li><li>
@@ -238,12 +237,14 @@ func genReadMe() {
 		}
 	}
 	if err != nil {
-		fail("No ReadMe.conf file found!")
-		os.Exit(1)
+		return fmt.Errorf("read ReadMe.conf: %w", err)
 	}
 
 	htmlFile.WriteString(userReadMe)
 	htmlFile.WriteString(footer)
 	info("Writing HTML to ReadMe.html...")
-	writeFile(dirPath+"assets/ReadMe.html", htmlFile.String())
+	if err := writeFileResult(dirPath+"assets/ReadMe.html", htmlFile.String()); err != nil {
+		return fmt.Errorf("write ReadMe.html: %w", err)
+	}
+	return nil
 }

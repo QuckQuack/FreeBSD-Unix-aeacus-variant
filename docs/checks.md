@@ -6,9 +6,7 @@ I have included just the BSD specific checks, please refer to the aeacus docs fo
 
 ### FreeBSD Specific Checks
 
-`aeacus` on FreeBSD supports the same check set as Linux (with the underlying mechanisms remapped to FreeBSD's
-tooling -- `pkg` instead of `dpkg`/`rpm`, `pf`/`ipfw` instead of `ufw`/`firewalld`, `service` instead of `systemctl`,
-etc), plus a handful of checks unique to FreeBSD.
+`aeacus` on FreeBSD supports the same checks as the Linux version, plus a few checks unique to FreeBSD.
 
 **FirewallUp**: pass if a firewall is actively enforcing in the running kernel: either PF (`pfctl -s info` reports
 `Status: Enabled`) or IPFW (`net.inet.ip.fw.enable` or `net.inet6.ip6.fw.enable` is non-zero). Merely having

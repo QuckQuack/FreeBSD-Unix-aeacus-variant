@@ -1,3 +1,4 @@
+
 bitbucket.org/creachadair/stringset v0.0.9/go.mod h1:t+4WcQ4+PXTa8aQdNKe40ZP6iwesoMFWAxPGd3UGjyY=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
 github.com/ActiveState/termtest/conpty v0.5.0/go.mod h1:LO4208FLsxw6DcNZ1UtuGUMW+ga9PFtX4ntv8Ymg9og=
@@ -12,7 +13,7 @@ github.com/DataDog/datadog-agent/pkg/util/scrubber v0.36.1 h1:WSe5C4MewgVzKLqcF8
 github.com/DataDog/datadog-agent/pkg/util/scrubber v0.36.1/go.mod h1:tNM5dDxDAHATiazmsa+hQZpS7uUb1PMHOBA3W5S1ZDM=
 github.com/DataDog/datadog-agent/pkg/util/winutil v0.36.1 h1:eWNGQJQ7izlcblsO75djDt8UCWdDPbVmcWhiv/RTvG8=
 github.com/DataDog/datadog-agent/pkg/util/winutil v0.36.1/go.mod h1:oiz2V6DMDpDWcVYKbzoKy2OWbUEnV20yN3YJAc+oC3c=
-github.com/StackExchange/wmi v1.2.0/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
+github.com/StackExchange/wmi v1.2.0/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/capnspacehook/taskmaster v0.0.0-20210519235353-1629df7c85e9/go.mod h1:257CYs3Wd/CTlLQ3c72jKv+fFE2MV3WPNnV5jiroYUU=
 github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575 h1:kHaBemcxl8o/pQ5VM1c8PVE1PubbNx3mjUr09OqWGCs=
 github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575/go.mod h1:9d6lWj8KzO/fd/NrVaLscBKmPigpZpn5YawRPw+e3Yo=

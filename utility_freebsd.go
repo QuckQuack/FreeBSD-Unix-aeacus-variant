@@ -37,25 +37,41 @@ func shQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// sendNotification sends a notification to the end user. Unlike Linux
-// (where systemd-logind reliably parks the user's D-Bus session socket at
-// /run/user/$uid/bus), FreeBSD has no single standard location for it, since
-// it depends on how the session was started (dbus-launch, slim, lightdm,
-// etc). This tries three ways to find it, in order of reliability:
+// sendNotification sends a notification to the end user, on any desktop
+// environment (GNOME, KDE, XFCE, MATE, Cinnamon, LXQt, etc), whatever the
+// DISPLAY value or session type (X11 or Wayland).
 //
-//  1. The session bus's own socket file under /tmp (dbus-launch's default
-//     location on FreeBSD). This is the most reliable option because it
-//     doesn't depend on reading another process's environment at all.
-//  2. A running dbus-daemon's environment, read via procstat(1). Note this
-//     can silently come up empty on a real desktop session: FreeBSD caps
-//     how many bytes of a process's argv+environ the kernel keeps around
-//     for tools like procstat to read (kern.ps_arg_cache_limit, often 256
-//     bytes by default), and a full DE session environment can easily
-//     exceed that, truncating or dropping DBUS_SESSION_BUS_ADDRESS
-//     entirely before procstat ever sees it.
-//  3. The classic ~/.dbus/session-bus file.
+// notify-send only needs to reach the user's D-Bus *session bus*, so the
+// real job is finding that bus address. FreeBSD has no single standard
+// location for it (unlike systemd-logind on Linux), since it depends on how
+// the session was started (dbus-launch, dbus-run-session, gdm, sddm, slim,
+// lightdm, etc). Instead of trusting one method, this gathers every
+// candidate address it can find, then actually tries notify-send against
+// each one until a delivery succeeds:
 //
-// If the underlying command fails, this surfaces its actual stderr rather
+//  1. DBUS_SESSION_BUS_ADDRESS from the environment of any of the user's
+//     running processes, read via procstat(1). This is the authoritative
+//     source on GNOME and most other full sessions. Note procstat can come
+//     up empty for big environments, because FreeBSD caps how many bytes
+//     of argv+environ the kernel keeps for it (kern.ps_arg_cache_limit),
+//     which is why this is not the only method.
+//  2. The usual runtime-directory sockets: $XDG_RUNTIME_DIR/bus,
+//     /var/run/user/$uid/bus, /run/user/$uid/bus, /tmp/runtime-$user/bus.
+//  3. The session bus's own socket file under /tmp (dbus-launch's default
+//     location on FreeBSD).
+//  4. The --address= argument of the user's running dbus-daemon, read via
+//     ps(1) with unlimited width.
+//  5. The classic ~/.dbus/session-bus/* files.
+//
+// DISPLAY, WAYLAND_DISPLAY and XDG_RUNTIME_DIR are likewise taken from the
+// user's real session when it can be found, falling back to scanning
+// /tmp/.X11-unix for the live X display (rather than assuming :0).
+//
+// The message, user and icon path are handed to the script through its
+// environment rather than spliced into the script text, so nothing
+// configurable can break out of shell quoting.
+//
+// If every candidate fails, this surfaces the actual error output rather
 // than a generic message, since "failed" alone doesn't distinguish between
 // (for example) no user session existing at all versus a notification
 // daemon simply not being registered to receive the message.
@@ -64,42 +80,142 @@ func sendNotification(messageString string) {
 		fail("User not specified in configuration, can't send notification.")
 		return
 	}
-	user := shQuote(conf.User)
 	script := `
-		user=` + user + `
-		display=""
+		PATH="/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin:$PATH"
+		export PATH
 
-		busfile="$(find /tmp -maxdepth 1 -type s -name 'dbus-*' -user "$user" 2>/dev/null | head -n1)"
-		if [ -n "$busfile" ]; then
-			display="unix:path=$busfile"
+		user="$AEACUS_USER"
+		uid="$(id -u "$user" 2>/dev/null)"
+		if [ -z "$uid" ]; then
+			echo "user $user does not exist"
+			exit 1
+		fi
+		home="$(pw usershow "$user" 2>/dev/null | cut -d: -f9)"
+		if [ -z "$home" ]; then
+			home="/home/$user"
 		fi
 
-		if [ -z "$display" ]; then
-			dbuspid="$(pgrep -u "$user" -x dbus-daemon | head -n1)"
-			if [ -n "$dbuspid" ]; then
-				display="$(procstat -e "$dbuspid" 2>/dev/null | awk -F'DBUS_SESSION_BUS_ADDRESS=' 'NF>1 {print $2; exit}')"
+		# Snapshot the environments of the user's running processes once.
+		envdump="$(for pid in $(pgrep -u "$user" 2>/dev/null | head -n 200); do procstat -e "$pid" 2>/dev/null; done)"
+
+		getenvvar() {
+			printf '%s\n' "$envdump" | awk -v key="$1" '{ for (i = 1; i <= NF; i++) if (index($i, key "=") == 1) { print substr($i, length(key) + 2); exit } }'
+		}
+
+		# Runtime directory.
+		xdg="$(getenvvar XDG_RUNTIME_DIR)"
+		if [ -z "$xdg" ]; then
+			for d in "/var/run/user/$uid" "/run/user/$uid" "/tmp/runtime-$user"; do
+				if [ -d "$d" ]; then
+					xdg="$d"
+					break
+				fi
+			done
+		fi
+
+		# X11 display: session's own value, else whatever X socket is live.
+		disp="$(getenvvar DISPLAY)"
+		if [ -z "$disp" ]; then
+			xsock="$(ls /tmp/.X11-unix 2>/dev/null | grep '^X[0-9]' | head -n1)"
+			if [ -n "$xsock" ]; then
+				disp=":${xsock#X}"
+			else
+				disp=":0"
 			fi
 		fi
 
-		if [ -z "$display" ]; then
-			busaddrfile="$(ls /home/$user/.dbus/session-bus/* 2>/dev/null | head -n1)"
-			if [ -n "$busaddrfile" ]; then
-				display="$(grep -m1 DBUS_SESSION_BUS_ADDRESS "$busaddrfile" | cut -d= -f2-)"
-			fi
+		# Wayland display, if any.
+		wl="$(getenvvar WAYLAND_DISPLAY)"
+		if [ -z "$wl" ] && [ -n "$xdg" ]; then
+			wl="$(ls "$xdg" 2>/dev/null | grep '^wayland-[0-9]*$' | head -n1)"
 		fi
 
-		if [ -z "$display" ]; then
-			echo "no D-Bus session address found for user $user (no /tmp socket, no dbus-daemon process, no ~/.dbus/session-bus file)"
+		export HOME="$home"
+		export DISPLAY="$disp"
+		if [ -n "$xdg" ]; then
+			export XDG_RUNTIME_DIR="$xdg"
+		fi
+		if [ -n "$wl" ]; then
+			export WAYLAND_DISPLAY="$wl"
+		fi
+
+		# Gather candidate session bus addresses, one per line.
+		candidates=""
+		add() {
+			if [ -n "$1" ]; then
+				candidates="$candidates
+$1"
+			fi
+		}
+
+		# 1. From the user's running processes.
+		add "$(getenvvar DBUS_SESSION_BUS_ADDRESS)"
+
+		# 2. Runtime directory sockets.
+		for sock in "$xdg/bus" "/var/run/user/$uid/bus" "/run/user/$uid/bus" "/tmp/runtime-$user/bus"; do
+			if [ -S "$sock" ]; then
+				add "unix:path=$sock"
+			fi
+		done
+
+		# 3. dbus-launch sockets under /tmp.
+		for sock in $(find /tmp -maxdepth 2 -type s -name 'dbus-*' -user "$user" 2>/dev/null); do
+			add "unix:path=$sock"
+		done
+
+		# 4. The running dbus-daemon's own --address argument.
+		for a in $(ps -U "$user" -ww -o args= 2>/dev/null | grep 'dbus-daemon' | grep -o -e '--address=[^ ]*' | sed 's/^--address=//'); do
+			add "$a"
+		done
+
+		# 5. Classic ~/.dbus/session-bus files.
+		for f in "$home"/.dbus/session-bus/*; do
+			if [ -f "$f" ]; then
+				add "$(sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p' "$f" | head -n1 | tr -d "'\"")"
+			fi
+		done
+
+		if [ -z "$(printf '%s' "$candidates" | tr -d '[:space:]')" ]; then
+			echo "no D-Bus session address found for user $user (checked running processes, runtime-dir sockets, /tmp sockets, dbus-daemon arguments, and ~/.dbus/session-bus)"
 			exit 1
 		fi
 
-		su -m "$user" -c "env DISPLAY=:0 DBUS_SESSION_BUS_ADDRESS=\"$display\" notify-send -i ` + shQuote(dirPath+"assets/img/logo.png") + ` \"Aeacus SE\" ` + shQuote(messageString) + `" 2>&1
+		# Try each candidate until one delivers.
+		tried=""
+		lasterr=""
+		oldifs="$IFS"
+		IFS='
+'
+		for addr in $candidates; do
+			IFS="$oldifs"
+			if [ -z "$addr" ]; then
+				continue
+			fi
+			case "$tried" in
+				*"|$addr|"*) continue ;;
+			esac
+			tried="$tried|$addr|"
+			out="$(DBUS_SESSION_BUS_ADDRESS="$addr" timeout 10 su -m "$user" -c 'notify-send -i "$AEACUS_ICON" "Aeacus SE" "$AEACUS_MSG"' 2>&1)"
+			if [ $? -eq 0 ]; then
+				exit 0
+			fi
+			lasterr="[$addr] $out"
+		done
+
+		echo "notify-send failed on every D-Bus address found; last attempt: $lasterr"
+		exit 1
 	`
+	cmd := rawCmd(script)
+	cmd.Env = append(os.Environ(),
+		"AEACUS_USER="+conf.User,
+		"AEACUS_ICON="+dirPath+"assets/img/logo.png",
+		"AEACUS_MSG="+messageString,
+	)
 	// CombinedOutput (rather than shellCommandOutput/Output) is used
 	// deliberately here: Output() discards stdout on a nonzero exit, which
 	// would throw away exactly the diagnostic text this script produces
 	// when it fails, leaving us back at an undiagnosable generic error.
-	out, err := rawCmd(script).CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		detail := strings.TrimSpace(string(out))
 		if detail == "" {
